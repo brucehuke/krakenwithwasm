@@ -36,6 +36,14 @@ bool _isSupportedBytecode(String mimeType, Uri? uri) {
   return false;
 }
 
+//bruce
+bool  _isSupportedWasmcode(String mimeType, Uri? uri) {
+  if (uri != null) {
+      if (uri.path.endsWith('.wasm')) return true;
+  }
+  return false;
+}
+
 // The default accept request header.
 // The order is HTML -> KBC -> JavaScript.
 String _acceptHeader() {
@@ -137,6 +145,8 @@ abstract class KrakenBundle {
                             contentType.mimeType == _javascriptApplicationContentType.mimeType ||
                             contentType.mimeType == _xJavascriptContentType.mimeType;
   bool get isBytecode => _isSupportedBytecode(contentType.mimeType, _uri);
+  //by bruce
+  bool get isWasmcode => _isSupportedWasmcode(contentType.mimeType, _uri);
 }
 
 // The bundle that output input data.

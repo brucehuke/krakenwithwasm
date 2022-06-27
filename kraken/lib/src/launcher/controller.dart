@@ -1210,6 +1210,9 @@ class KrakenController {
         evaluateScripts(contextId, await resolveStringFromData(data, preferSync: true), url: url);
       } else if (entrypoint.isBytecode) {
         evaluateQuickjsByteCode(contextId, data);
+      }else if (entrypoint.isWasmcode) {
+        //by bruce
+        evaluateWasmByteCode(contextId, data);
       } else if (entrypoint.isHTML) {
         parseHTML(contextId, await resolveStringFromData(data));
       } else if (entrypoint.contentType.primaryType == 'text') {

@@ -42,6 +42,9 @@ class KrakenPage final {
   uint8_t* dumpByteCode(const char* script, size_t length, const char* url, size_t* byteLength);
   void evaluateByteCode(uint8_t* bytes, size_t byteLength);
 
+  //by bruce
+  void evaluateWasmByteCode(uint8_t* bytes, size_t byteLength);
+
   [[nodiscard]] kraken::binding::qjs::ExecutionContext* getContext() const { return m_context; }
 
   void invokeModuleEvent(NativeString* moduleName, const char* eventType, void* event, NativeString* extra);

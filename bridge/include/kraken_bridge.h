@@ -103,6 +103,9 @@ KRAKEN_EXPORT_C
 void evaluateScripts(int32_t contextId, NativeString* code, const char* bundleFilename, int startLine);
 KRAKEN_EXPORT_C
 void evaluateQuickjsByteCode(int32_t contextId, uint8_t* bytes, int32_t byteLen);
+//by bruce
+KRAKEN_EXPORT_C
+void evaluateWasmByteCode(int32_t contextId, uint8_t* bytes, int32_t byteLen);
 KRAKEN_EXPORT_C
 void parseHTML(int32_t contextId, const char* code, int32_t length);
 KRAKEN_EXPORT_C

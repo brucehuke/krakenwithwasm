@@ -182,8 +182,21 @@ if ($ENV{KRAKEN_JS_ENGINE} MATCHES "quickjs")
     add_library(quickjs SHARED ${QUICK_JS_SOURCE})
   endif()
 
+  set (WAMR_BUILD_PLATFORM "linux")
+  set (WAMR_BUILD_TARGET "X86_64")
+  set (WAMR_BUILD_INTERP 1)
+  set (WAMR_BUILD_FAST_INTERP 1)
+  set (WAMR_BUILD_AOT 1)
+  set (WAMR_BUILD_LIBC_BUILTIN 1)
+  set (WAMR_BUILD_LIBC_WASI 1)
+  set (WAMR_BUILD_SIMD 1)
+  set (WAMR_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/iwasm)
+
+  include (${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake)
+  add_library(vmlib ${WAMR_RUNTIME_LIB_SOURCE})
+
   list(APPEND BRIDGE_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
-  list(APPEND BRIDGE_LINK_LIBS quickjs)
+  list(APPEND BRIDGE_LINK_LIBS quickjs vmlib)
 
   list(APPEND BRIDGE_SOURCE
     page.cc

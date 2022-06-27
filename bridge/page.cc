@@ -224,6 +224,12 @@ void KrakenPage::evaluateByteCode(uint8_t* bytes, size_t byteLength) {
   m_context->evaluateByteCode(bytes, byteLength);
 }
 
+void KrakenPage::evaluateWasmByteCode(uint8_t* bytes, size_t byteLength) {
+  if (!m_context->isValid())
+    return;
+  m_context->evaluateWasmByteCode(bytes, byteLength);
+}
+
 KrakenPage::~KrakenPage() {
 #if IS_TEST
   if (disposeCallback != nullptr) {

@@ -39,6 +39,9 @@ class ScriptRunner {
       evaluateScripts(contextId, contentInString, url: bundle.url);
     } else if (bundle.isBytecode) {
       evaluateQuickjsByteCode(contextId, bundle.data!);
+    } else if (bundle.isWasmcode) {
+     //by bruce
+      evaluateWasmByteCode(contextId, bundle.data!);
     } else {
       throw FlutterError('Unknown type for <script> to execute. $url');
     }

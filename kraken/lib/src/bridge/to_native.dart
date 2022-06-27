@@ -196,6 +196,27 @@ void evaluateQuickjsByteCode(int contextId, Uint8List bytes) {
   malloc.free(byteData);
 }
 
+//by bruce
+typedef NativeEvaluateWasmByteCode = Void Function(
+    Int32 contextId, Pointer<Uint8> bytes, Int32 byteLen);
+typedef DartEvaluateWasmByteCode = void Function(
+    int contextId, Pointer<Uint8> bytes, int byteLen);
+
+final DartEvaluateWasmByteCode _evaluateWasmByteCode = KrakenDynamicLibrary
+    .ref
+    .lookup<NativeFunction<NativeEvaluateWasmByteCode>>('evaluateWasmByteCode')
+    .asFunction();
+
+void evaluateWasmByteCode(int contextId, Uint8List bytes) {
+  if (KrakenController.getControllerOfJSContextId(contextId) == null) {
+    return;
+  }
+  Pointer<Uint8> byteData = malloc.allocate(sizeOf<Uint8>() * bytes.length);
+  byteData.asTypedList(bytes.length).setAll(0, bytes);
+  _evaluateWasmByteCode(contextId, byteData, bytes.length);
+  malloc.free(byteData);
+}
+
 void parseHTML(int contextId, String code) {
   if (KrakenController.getControllerOfJSContextId(contextId) == null) {
     return;

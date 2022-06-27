@@ -1,0 +1,4 @@
+/mnt/data1/source/wasm-micro-runtime-WAMR-05-18-2022/samples/basic/cmake_build/CMakeFiles/rebuild_cache.dir
+/mnt/data1/source/wasm-micro-runtime-WAMR-05-18-2022/samples/basic/cmake_build/CMakeFiles/edit_cache.dir
+/mnt/data1/source/wasm-micro-runtime-WAMR-05-18-2022/samples/basic/cmake_build/CMakeFiles/vmlib.dir
+/mnt/data1/source/wasm-micro-runtime-WAMR-05-18-2022/samples/basic/cmake_build/CMakeFiles/basic.dir

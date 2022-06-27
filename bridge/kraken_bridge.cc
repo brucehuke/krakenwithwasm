@@ -150,6 +150,10 @@ bool checkPage(int32_t contextId, void* context) {
 void evaluateScripts(int32_t contextId, NativeString* code, const char* bundleFilename, int startLine) {
   assert(checkPage(contextId) && "evaluateScripts: contextId is not valid");
   auto context = static_cast<kraken::KrakenPage*>(getPage(contextId));
+
+  //bruce 
+  KRAKEN_LOG(DEBUG) << "  bundleFilename: " << bundleFilename  <<  "  startLine:"  << startLine  << "  code string:"  << code->string  <<  "  code string len: "  <<  code->length  << std::endl;
+
   context->evaluateScript(code, bundleFilename, startLine);
 }
 
@@ -157,6 +161,14 @@ void evaluateQuickjsByteCode(int32_t contextId, uint8_t* bytes, int32_t byteLen)
   assert(checkPage(contextId) && "evaluateScripts: contextId is not valid");
   auto context = static_cast<kraken::KrakenPage*>(getPage(contextId));
   context->evaluateByteCode(bytes, byteLen);
+}
+
+//by bruce
+void evaluateWasmByteCode(int32_t contextId, uint8_t* bytes, int32_t byteLen) {
+  assert(checkPage(contextId) && "evaluateWasmScripts: contextId is not valid");
+  auto context = static_cast<kraken::KrakenPage*>(getPage(contextId));
+  KRAKEN_LOG(DEBUG) << "  bytes: " << bytes  <<  "  byteLen:"  << byteLen   << std::endl;
+  context->evaluateWasmByteCode(bytes, byteLen);
 }
 
 void parseHTML(int32_t contextId, const char* code, int32_t length) {

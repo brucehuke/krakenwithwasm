@@ -11,6 +11,7 @@
 #include "garbage_collected.h"
 #include "kraken_bridge.h"
 #include "qjs_patch.h"
+#include "foundation/logging.h"
 
 namespace kraken::binding::qjs {
 
@@ -40,9 +41,90 @@ void ExecutionContextGCTracker::dispose() const {}
 
 JSClassID ExecutionContextGCTracker::contextGcTrackerClassId{0};
 
+int  add_native(wasm_exec_env_t exec_env , int a,int b)
+{
+  return a+b;
+}
+
+static JSValue js_call_warm_func(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic, JSValue *func_data)
+{
+    const char* funcname = JS_ToCString(ctx,func_data[1]);
+    ExecutionContext* ptr = (ExecutionContext*)(func_data[0].u.ptr);
+
+    wasm_function_inst_t func = wasm_runtime_lookup_function(ptr->module_inst, funcname, NULL);
+
+    if(func==nullptr)
+    {
+      std::string errormsg = funcname;
+      errormsg = errormsg + " no found";
+      KRAKEN_LOG(DEBUG) << "  could not found func: " << funcname    << std::endl;
+      return JS_NewString(ctx,errormsg.c_str());
+    }
+    
+
+    wasm_val_t results[1];
+    wasm_val_t *wasm_argv = new wasm_val_t[argc];
+    for(int i=0;i<argc;++i)
+    {
+        KRAKEN_LOG(DEBUG) << "  arg type " << argv[i].tag   << std::endl;
+        if(argv[i].tag==JS_TAG_FLOAT64)
+        {
+          wasm_argv[i].kind = WASM_F64;
+          JS_ToFloat64(ctx,&(wasm_argv[i].of.f64) ,argv[i]);
+        }
+        else if(argv[i].tag==JS_TAG_INT)
+        {
+          wasm_argv[i].kind = WASM_I32;
+          JS_ToInt32(ctx,&(wasm_argv[i].of.i32) ,argv[i]);
+        }
+
+    }
+
+    if(wasm_runtime_call_wasm_a(ptr->exec_env, func, 1, results, argc, wasm_argv))
+    {
+        KRAKEN_LOG(DEBUG) << "  result type: " <<  (int)results[0].kind  << std::endl;
+        if(results[0].kind==WASM_I32)
+            return JS_NewInt32(ctx,results[0].of.i32);
+        else if(results[0].kind==WASM_F64)
+            return JS_NewFloat64(ctx,results[0].of.f64);
+         else if(results[0].kind==WASM_F32)
+            return JS_NewFloat64(ctx,results[0].of.f32);
+    }
+    else{
+        KRAKEN_LOG(DEBUG) << wasm_runtime_get_exception(ptr->module_inst)  << std::endl;
+    }
+    return JS_NewError(ctx);
+    /*for(int i = 0; i < argc; i++)
+    {
+      KRAKEN_LOG(DEBUG) << "  js myadd argv: " << argv[i].tag    << std::endl;
+    }
+    if(strcmp("myadd",funcname)==0)
+    {
+      int a = 0;
+      int b = 0;
+      JS_ToInt32(ctx, &a, argv[0]);
+      JS_ToInt32(ctx, &b, argv[1]);
+      return JS_NewInt32(ctx, a + b);
+    }
+    else     if(strcmp("myadd2",funcname)==0)
+    {
+      int a = 0;
+      int b = 0;
+      int c = 0;
+      JS_ToInt32(ctx, &a, argv[0]);
+      JS_ToInt32(ctx, &b, argv[1]);
+      JS_ToInt32(ctx, &c, argv[2]);
+      return JS_NewInt32(ctx, a + b+c);
+    }*/
+    // return a+1
+    
+}
+
 ExecutionContext::ExecutionContext(int32_t contextId, const JSExceptionHandler& handler, void* owner)
     : contextId(contextId), _handler(handler), owner(owner), ctxInvalid_(false), uniqueId(context_unique_id++) {
   // @FIXME: maybe contextId will larger than MAX_JS_CONTEXT
+  KRAKEN_LOG(DEBUG) <<  "  ExecutionContext start!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! "   << std::endl;
+
   valid_contexts[contextId] = true;
   if (contextId > running_context_list)
     running_context_list = contextId;
@@ -79,6 +161,18 @@ ExecutionContext::ExecutionContext(int32_t contextId, const JSExceptionHandler& 
   m_gcTracker = makeGarbageCollected<ExecutionContextGCTracker>()->initialize(m_ctx, &ExecutionContextGCTracker::contextGcTrackerClassId);
   JS_DefinePropertyValueStr(m_ctx, globalObject, "_gc_tracker_", m_gcTracker->toQuickJS(), JS_PROP_NORMAL);
 
+ //by bruce
+  wasm_runtime_init();
+  static NativeSymbol native_symbols[] = {
+    EXPORT_WASM_API_WITH_SIG(add_native, "(ii)i")
+  };
+  int n_native_symbols = sizeof(native_symbols) / sizeof(NativeSymbol);
+  if (!wasm_runtime_register_natives("env",
+                                    native_symbols, 
+                                    n_native_symbols)) {    
+      KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail"  << std::endl;
+  }
+
   runningContexts++;
 }
 
@@ -86,6 +180,7 @@ ExecutionContext::~ExecutionContext() {
   valid_contexts[contextId] = false;
   ctxInvalid_ = true;
 
+  KRAKEN_LOG(DEBUG) <<  "  ExecutionContext finish!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! "   << std::endl;
   // Manual free nodes bound by each other.
   {
     struct list_head *el, *el1;
@@ -148,6 +243,17 @@ ExecutionContext::~ExecutionContext() {
   // Run GC to clean up remaining objects about m_ctx;
   JS_RunGC(m_runtime);
 
+  //by bruce
+  if(m_loadwasm)
+  {
+    wasm_runtime_destroy_exec_env(exec_env);
+    wasm_runtime_deinstantiate(module_inst);
+    wasm_runtime_unload(module);
+    delete []m_wasmbuf;
+    m_wasmbuf= nullptr;
+  }
+  wasm_runtime_destroy();
+
 #if DUMP_LEAKS
   if (--runningContexts == 0) {
     JS_FreeRuntime(m_runtime);
@@ -159,6 +265,8 @@ ExecutionContext::~ExecutionContext() {
 
 bool ExecutionContext::evaluateJavaScript(const uint16_t* code, size_t codeLength, const char* sourceURL, int startLine) {
   std::string utf8Code = toUTF8(std::u16string(reinterpret_cast<const char16_t*>(code), codeLength));
+    //bruce
+  KRAKEN_LOG(DEBUG) <<  "this1: "   <<  this << "  js utf8Code code: " << utf8Code  <<  "  codeLength:"  << codeLength   << std::endl;
   JSValue result = JS_Eval(m_ctx, utf8Code.c_str(), utf8Code.size(), sourceURL, JS_EVAL_TYPE_GLOBAL);
   drainPendingPromiseJobs();
   bool success = handleException(&result);
@@ -168,6 +276,8 @@ bool ExecutionContext::evaluateJavaScript(const uint16_t* code, size_t codeLengt
 
 bool ExecutionContext::evaluateJavaScript(const char16_t* code, size_t length, const char* sourceURL, int startLine) {
   std::string utf8Code = toUTF8(std::u16string(reinterpret_cast<const char16_t*>(code), length));
+    //bruce
+  KRAKEN_LOG(DEBUG) <<  "this2: "   <<  this << "  js utf8Code code: " << utf8Code  <<  "  codeLength:"  << length   << std::endl;
   JSValue result = JS_Eval(m_ctx, utf8Code.c_str(), utf8Code.size(), sourceURL, JS_EVAL_TYPE_GLOBAL);
   drainPendingPromiseJobs();
   bool success = handleException(&result);
@@ -176,6 +286,8 @@ bool ExecutionContext::evaluateJavaScript(const char16_t* code, size_t length, c
 }
 
 bool ExecutionContext::evaluateJavaScript(const char* code, size_t codeLength, const char* sourceURL, int startLine) {
+  //bruce
+  KRAKEN_LOG(DEBUG) <<  "this: "   <<  this << "  js code: " << code  <<  "  codeLength:"  << codeLength   << std::endl;
   JSValue result = JS_Eval(m_ctx, code, codeLength, sourceURL, JS_EVAL_TYPE_GLOBAL);
   drainPendingPromiseJobs();
   bool success = handleException(&result);
@@ -192,6 +304,80 @@ bool ExecutionContext::evaluateByteCode(uint8_t* bytes, size_t byteLength) {
   if (!handleException(&val))
     return false;
   JS_FreeValue(m_ctx, val);
+  return true;
+}
+
+
+//bruce
+bool ExecutionContext::evaluateWasmByteCode(uint8_t* bytes, size_t byteLength) {
+
+  KRAKEN_LOG(DEBUG) <<  "this: "   <<  this << "  wasm code: " << bytes  <<  "  byteLength:"  << byteLength   << std::endl;
+  m_wasmbuf = new unsigned char[byteLength];
+  memcpy(m_wasmbuf,bytes,byteLength);
+  char error_buf[128];
+  /*wasm_module_t module;
+  wasm_module_inst_t module_inst;
+  wasm_function_inst_t func;
+  wasm_exec_env_t exec_env;*/
+  unsigned int size, stack_size = 8092, heap_size = 8092;
+
+  module = wasm_runtime_load(m_wasmbuf, byteLength, error_buf, sizeof(error_buf));
+  /* create an instance of the WASM module (WASM linear memory is ready) */
+  module_inst = wasm_runtime_instantiate(module, stack_size, heap_size,
+                                         error_buf, sizeof(error_buf));
+  exec_env = wasm_runtime_create_exec_env(module_inst, stack_size);
+  
+  //KRAKEN_LOG(DEBUG) <<  "ExecutionContext:  " <<  this  <<   "  module_inst: "  << module_inst  << std::endl;
+
+  m_loadwasm = true;
+  char func_name[256][256];
+  int  param_count[256];
+  int func_count = 0;
+  func_count = wasm_runtime_list_functions(module_inst,func_name,param_count);
+  
+
+  //KRAKEN_LOG(DEBUG) <<  "wasm_runtime_list_functions ret: "   <<   func_count   << std::endl;
+
+  JSValue global_obj = JS_GetGlobalObject(ctx());
+  /*
+  JSValue data = (JSValueConst)JS_NewString(ctx(),"add");
+  JS_SetPropertyStr(ctx(), global_obj, "add",
+                      JS_NewCFunctionData(ctx(), js_call_warm_func, 2,0,1,&data));
+  JSValue data2 = (JSValueConst)JS_NewString(ctx(),"add2");
+  JS_SetPropertyStr(ctx(), global_obj, "add2",
+                      JS_NewCFunctionData(ctx(), js_call_warm_func, 3,0,1,&data2));*/
+
+  JSValueConst data[2];
+  data[0].u.ptr = this;
+  
+  for(int i = 0;i<func_count;++i)
+  {
+    KRAKEN_LOG(DEBUG) <<  "func_name: "   <<  func_name[i] << "  param_count: " << param_count[i]    << std::endl;
+    
+    data[1] = (JSValueConst)JS_NewString(ctx(),func_name[i]);
+    JS_SetPropertyStr(ctx(), global_obj, func_name[i],
+                      JS_NewCFunctionData(ctx(), js_call_warm_func, param_count[i],0,2,data));
+  }
+
+  JS_FreeValue(ctx(), global_obj);
+
+  //wasm_function_inst_t func = wasm_runtime_lookup_function(module_inst, "add", NULL);
+  //KRAKEN_LOG(DEBUG) <<  "wasm_runtime_lookup_function: "   <<  func << std::endl;
+/*
+  wasm_function_inst_t func = wasm_runtime_lookup_function(module_inst, "add", NULL);
+  exec_env = wasm_runtime_create_exec_env(module_inst, stack_size);
+
+  unsigned int argv[2];
+
+  argv[0] = 8;
+  argv[1] = -6;
+  if(wasm_runtime_call_wasm(exec_env, func, 2, argv))
+  {
+      KRAKEN_LOG(DEBUG) << "  call wasm add success ret: " << argv[0]    << std::endl;
+  }
+  else{
+      KRAKEN_LOG(DEBUG) << "  call wasm add fail"  << std::endl;
+  }*/
   return true;
 }
 

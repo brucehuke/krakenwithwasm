@@ -1,0 +1,9 @@
+/mnt/data1/source/wasm-micro-runtime-WAMR-05-18-2022/product-mini/platforms/linux/buildX64/CMakeFiles/install/strip.dir
+/mnt/data1/source/wasm-micro-runtime-WAMR-05-18-2022/product-mini/platforms/linux/buildX64/CMakeFiles/install/local.dir
+/mnt/data1/source/wasm-micro-runtime-WAMR-05-18-2022/product-mini/platforms/linux/buildX64/CMakeFiles/install.dir
+/mnt/data1/source/wasm-micro-runtime-WAMR-05-18-2022/product-mini/platforms/linux/buildX64/CMakeFiles/list_install_components.dir
+/mnt/data1/source/wasm-micro-runtime-WAMR-05-18-2022/product-mini/platforms/linux/buildX64/CMakeFiles/iwasm.dir
+/mnt/data1/source/wasm-micro-runtime-WAMR-05-18-2022/product-mini/platforms/linux/buildX64/CMakeFiles/libiwasm.dir
+/mnt/data1/source/wasm-micro-runtime-WAMR-05-18-2022/product-mini/platforms/linux/buildX64/CMakeFiles/vmlib.dir
+/mnt/data1/source/wasm-micro-runtime-WAMR-05-18-2022/product-mini/platforms/linux/buildX64/CMakeFiles/edit_cache.dir
+/mnt/data1/source/wasm-micro-runtime-WAMR-05-18-2022/product-mini/platforms/linux/buildX64/CMakeFiles/rebuild_cache.dir
