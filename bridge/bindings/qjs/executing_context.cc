@@ -13,6 +13,12 @@
 #include "qjs_patch.h"
 #include "foundation/logging.h"
 
+#include <wchar.h>
+#include <iostream>
+#include <string>
+#include <locale>
+#include <codecvt>
+
 namespace kraken::binding::qjs {
 
 static std::atomic<int32_t> context_unique_id{0};
@@ -33,6 +39,15 @@ std::unique_ptr<ExecutionContext> createJSContext(int32_t contextId, const JSExc
 
 static JSRuntime* m_runtime{nullptr};
 
+//by bruce
+static JSContext*   g_context{nullptr};
+static ExecutionContext* g_this_ec{nullptr};
+static JSValue g_lastobj;
+std::unordered_map<int, JSValue>  g_jsid2cobj;
+static int g_windowid;
+static int g_documentid;
+static int g_bodyid=0;
+
 void ExecutionContextGCTracker::trace(JSRuntime* rt, JSValue val, JS_MarkFunc* mark_func) const {
   auto* context = static_cast<ExecutionContext*>(JS_GetContextOpaque(m_ctx));
   context->trace(rt, context->global(), mark_func);
@@ -46,8 +61,196 @@ int  add_native(wasm_exec_env_t exec_env , int a,int b)
   return a+b;
 }
 
+void abort(wasm_exec_env_t exec_env , int a,int b,int c,int d)
+{
+  return;
+}
+
+void trackWindow(wasm_exec_env_t exec_env , int windowid)
+{
+  KRAKEN_LOG(DEBUG) << "  in trackWindow windowid: "  << windowid  << std::endl;
+  g_windowid = windowid;
+  return;
+}
+
+void getDocument(wasm_exec_env_t exec_env , int windowid,int documentid)
+{
+  KRAKEN_LOG(DEBUG) << "  in getDocument windowid: "  << windowid  <<   "  documentid:"   <<  documentid << std::endl;
+  g_documentid = documentid;
+  g_jsid2cobj[documentid] = g_this_ec->getGlobalProperty("document");
+  return;
+}
+
+void getCustomElements(wasm_exec_env_t exec_env , int a,int b)
+{
+  KRAKEN_LOG(DEBUG) << "  in getCustomElements a: "  << a  <<   "  b:"   <<  b  << std::endl;
+  return;
+}
+
+void getHistory(wasm_exec_env_t exec_env , int a,int b)
+{
+  KRAKEN_LOG(DEBUG) << "  in getHistory a: "  << a  <<   "  b:"   <<  b  << std::endl;
+  return;
+}
+
+void trackNextRef(wasm_exec_env_t exec_env , int id)
+{
+  KRAKEN_LOG(DEBUG) << "  in trackNextRef id: "  <<  id   << std::endl;
+  if(g_bodyid==-1)
+  {
+      g_bodyid = id;
+      JSValue body = Document::getBody(g_context, g_this_ec->getGlobalProperty("document"),0,nullptr); 
+      g_jsid2cobj[id] = body;
+      KRAKEN_LOG(DEBUG) << "  in documentbody tag: "  <<  g_jsid2cobj[id].tag  <<  "  value:" <<   g_jsid2cobj[id].u.ptr   << std::endl;
+      return;
+  }
+  g_jsid2cobj[id] = g_lastobj;
+  return;
+}
+
+int  createTextNode(wasm_exec_env_t exec_env ,int id, char16_t *data)
+{
+  std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
+  //std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
+  std::string datastr = converter.to_bytes(data);
+  
+  JSValue str = JS_NewString(g_context,datastr.c_str());
+
+  size_t wcs_sz = sizeof data / sizeof *data;
+  KRAKEN_LOG(DEBUG) << "  in createTextNode id: "  << id  <<   "  data:"   <<  datastr   << std::endl; 
+
+  g_lastobj = Document::createTextNode(g_context, g_jsid2cobj[id], 1, &str);
+
+  JS_FreeValue(g_context,str);
+
+  return -100;
+}
+
+int createElement(wasm_exec_env_t exec_env ,int id, char16_t *data)
+{
+  std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
+  std::string datastr = converter.to_bytes(data);
+  
+  JSValue str = JS_NewString(g_context,datastr.c_str());
+
+  KRAKEN_LOG(DEBUG) << "  in createElement id: "  << id  <<   "  data:"   <<  datastr  << std::endl; 
+
+  g_lastobj = Document::createElement(g_context, g_jsid2cobj[id], 1, &str);
+
+  if(g_lastobj.u.ptr == nullptr)
+  {
+    KRAKEN_LOG(DEBUG) << "  in createElement create element faild: "    <<   "  data:"   <<  datastr  << std::endl; 
+    return 0;
+  }
+
+  JS_FreeValue(g_context,str);
+
+   if(datastr=="p" || datastr=="br")
+   {
+      return -5;
+   }
+  return 0;
+}
+
+void  log(wasm_exec_env_t exec_env , char16_t *data)
+{
+  std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
+  std::string datastr = converter.to_bytes(data);
+
+  KRAKEN_LOG(DEBUG) << "  in mylog: "   <<  datastr  << std::endl;
+  return;
+}
+
+void nodeAppendChild(wasm_exec_env_t exec_env , int parentId, int childId)
+{
+  KRAKEN_LOG(DEBUG) << "  in nodeAppendChild pid: "  << parentId  <<   "  cid:"   <<  childId  << std::endl;
+  JSValue ret = Node::appendChild(g_context,g_jsid2cobj[parentId],1, &g_jsid2cobj[childId]);
+  KRAKEN_LOG(DEBUG) << "  in nodeAppendChild ret: "  << ret.tag  <<   "  ret val:"   <<  ret.u.ptr  << std::endl;
+}
+
+inline std::string trim(std::string& str) {
+  str.erase(0, str.find_first_not_of(' '));  // prefixing spaces
+  str.erase(str.find_last_not_of(' ') + 1);  // surfixing spaces
+  return str;
+}
+
+void elSetAttribute(wasm_exec_env_t exec_env , int id, char16_t *attr, char16_t *value)
+{
+  std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
+  std::string attrstr = converter.to_bytes(attr);
+  std::string valuestr = converter.to_bytes(value);
+
+  KRAKEN_LOG(DEBUG) << "  in elSetAttribute id: "  << id  <<   "  attr:"   <<  attrstr  <<   "   value:"   <<  valuestr   << std::endl; 
+
+  JSValue attrV[2];
+
+
+  JSValue ret;
+  if(attrstr=="style")
+  {
+      std::vector<std::string> arrStyles;
+      std::string::size_type prev_pos = 0, pos = 0;
+      std::string strStyles = valuestr;
+
+      while ((pos = strStyles.find(';', pos)) != std::string::npos) {
+        arrStyles.push_back(strStyles.substr(prev_pos, pos - prev_pos));
+        prev_pos = ++pos;
+      }
+      arrStyles.push_back(strStyles.substr(prev_pos, pos - prev_pos));
+
+      KRAKEN_LOG(DEBUG) << "  arrStyles count: "  <<  arrStyles.size()  << std::endl; 
+
+
+      for (auto& s : arrStyles) {
+        std::string::size_type position = s.find(':');
+        if (position != std::basic_string<char>::npos) {
+          std::string styleKey = s.substr(0, position);
+          trim(styleKey);
+          std::string styleValue = s.substr(position + 1, s.length());
+          trim(styleValue);
+
+          attrV[0] = JS_NewString(g_context,styleKey.c_str());
+          attrV[1] = JS_NewString(g_context, styleValue.c_str());
+          
+          //style->internalSetProperty(styleKey, newStyleValue);
+          auto* instance = static_cast<ElementInstance*>(JS_GetOpaque(g_jsid2cobj[id], Element::kElementClassId));
+          //KRAKEN_LOG(DEBUG) << "  style key: "  <<  styleKey  <<   "  style value:" << styleValue  <<   "   instance:" <<   instance  << std::endl; 
+          
+          ret =CSSStyleDeclaration::setProperty(g_context,instance->style()->jsObject,2,attrV);
+          JS_FreeValue(g_context,attrV[0]);
+          JS_FreeValue(g_context,attrV[1]);
+        }
+      }
+    
+  }
+  else
+  {
+      attrV[0] = JS_NewString(g_context,attrstr.c_str());
+      attrV[1] = JS_NewString(g_context,valuestr.c_str());
+      ret = Element::setAttribute(g_context,g_jsid2cobj[id],2,attrV);
+      JS_FreeValue(g_context,attrV[0]);
+      JS_FreeValue(g_context,attrV[1]);
+  }
+
+  KRAKEN_LOG(DEBUG) << "  in elSetAttribute ret tag: "  << ret.tag  <<   "  value:"   <<  ret.u.ptr   << std::endl; 
+
+  return;
+}
+
+int getBody(wasm_exec_env_t exec_env , int  id)
+{
+  KRAKEN_LOG(DEBUG) << "  in getBody documentid: "  << id  << std::endl;
+  if(g_bodyid==0)
+  {
+    g_bodyid =-1;
+    return -2;
+  }
+  return g_bodyid;
+}
+
 static JSValue js_call_warm_func(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic, JSValue *func_data)
 {
+    KRAKEN_LOG(DEBUG) << "  in js_call_warm_func this_val tag: "  << this_val.tag  <<   "  data:"   <<  this_val.u.ptr << std::endl;
     const char* funcname = JS_ToCString(ctx,func_data[1]);
     ExecutionContext* ptr = (ExecutionContext*)(func_data[0].u.ptr);
 
@@ -66,7 +269,7 @@ static JSValue js_call_warm_func(JSContext *ctx, JSValueConst this_val, int argc
     wasm_val_t *wasm_argv = new wasm_val_t[argc];
     for(int i=0;i<argc;++i)
     {
-        KRAKEN_LOG(DEBUG) << "  arg type " << argv[i].tag   << std::endl;
+        //KRAKEN_LOG(DEBUG) << "  arg type " << argv[i].tag   << std::endl;
         if(argv[i].tag==JS_TAG_FLOAT64)
         {
           wasm_argv[i].kind = WASM_F64;
@@ -161,15 +364,75 @@ ExecutionContext::ExecutionContext(int32_t contextId, const JSExceptionHandler& 
   m_gcTracker = makeGarbageCollected<ExecutionContextGCTracker>()->initialize(m_ctx, &ExecutionContextGCTracker::contextGcTrackerClassId);
   JS_DefinePropertyValueStr(m_ctx, globalObject, "_gc_tracker_", m_gcTracker->toQuickJS(), JS_PROP_NORMAL);
 
- //by bruce
+ //by bruce 
+ g_context = m_ctx;
+ g_this_ec = this;
   wasm_runtime_init();
+
+  static NativeSymbol native_symbols_env[] = {
+    EXPORT_WASM_API_WITH_SIG(abort, "(iiii)")
+  };
+  int n_native_symbols_env = sizeof(native_symbols_env) / sizeof(NativeSymbol);
+  if (!wasm_runtime_register_natives("env",
+                                    native_symbols_env, 
+                                    n_native_symbols_env)) {    
+      KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail"  << std::endl;
+  }
+
+  static NativeSymbol native_symbols_window[] = {
+    EXPORT_WASM_API_WITH_SIG(trackWindow, "(i)"),
+    EXPORT_WASM_API_WITH_SIG(getDocument, "(ii)"),
+    EXPORT_WASM_API_WITH_SIG(getCustomElements, "(ii)"),
+    EXPORT_WASM_API_WITH_SIG(getHistory, "(ii)")
+  };
+  int n_native_symbols_window = sizeof(native_symbols_window) / sizeof(NativeSymbol);
+  if (!wasm_runtime_register_natives("asDOM_Window",
+                                    native_symbols_window, 
+                                    n_native_symbols_window)) {    
+      KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail"  << std::endl;
+  }
+
   static NativeSymbol native_symbols[] = {
-    EXPORT_WASM_API_WITH_SIG(add_native, "(ii)i")
+    EXPORT_WASM_API_WITH_SIG(createTextNode, "(i$)i"),
+    EXPORT_WASM_API_WITH_SIG(createElement, "(i$)i"),
+    EXPORT_WASM_API_WITH_SIG(getBody, "(i)i")
   };
   int n_native_symbols = sizeof(native_symbols) / sizeof(NativeSymbol);
-  if (!wasm_runtime_register_natives("env",
+  if (!wasm_runtime_register_natives("asDOM_Document",
                                     native_symbols, 
                                     n_native_symbols)) {    
+      KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail"  << std::endl;
+  }
+
+  static NativeSymbol native_symbols_node[] = {
+    EXPORT_WASM_API_WITH_SIG(nodeAppendChild, "(ii)")
+  };
+  int n_native_symbols_node = sizeof(native_symbols_node) / sizeof(NativeSymbol);
+  if (!wasm_runtime_register_natives("asDOM_Node",
+                                    native_symbols_node, 
+                                    n_native_symbols_node)) {    
+      KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail"  << std::endl;
+  }
+
+  static NativeSymbol native_symbols_element[] = {
+    EXPORT_WASM_API_WITH_SIG(elSetAttribute, "(i$$)")
+  };
+  int n_native_symbols_element = sizeof(native_symbols_element) / sizeof(NativeSymbol);
+  if (!wasm_runtime_register_natives("asDOM_Element",
+                                    native_symbols_element, 
+                                    n_native_symbols_element)) {    
+      KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail"  << std::endl;
+  }
+
+
+  static NativeSymbol native_symbols_asdom[] = {
+    EXPORT_WASM_API_WITH_SIG(trackNextRef, "(i)"),
+    EXPORT_WASM_API_WITH_SIG(log, "($)")
+  };
+  int n_native_symbols_asdom = sizeof(native_symbols_asdom) / sizeof(NativeSymbol);
+  if (!wasm_runtime_register_natives("asDOM",
+                                    native_symbols_asdom, 
+                                    n_native_symbols_asdom)) {    
       KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail"  << std::endl;
   }
 
@@ -266,7 +529,7 @@ ExecutionContext::~ExecutionContext() {
 bool ExecutionContext::evaluateJavaScript(const uint16_t* code, size_t codeLength, const char* sourceURL, int startLine) {
   std::string utf8Code = toUTF8(std::u16string(reinterpret_cast<const char16_t*>(code), codeLength));
     //bruce
-  KRAKEN_LOG(DEBUG) <<  "this1: "   <<  this << "  js utf8Code code: " << utf8Code  <<  "  codeLength:"  << codeLength   << std::endl;
+  //KRAKEN_LOG(DEBUG) <<  "this1: "   <<  this << "  js utf8Code code: " << utf8Code  <<  "  codeLength:"  << codeLength   << std::endl;
   JSValue result = JS_Eval(m_ctx, utf8Code.c_str(), utf8Code.size(), sourceURL, JS_EVAL_TYPE_GLOBAL);
   drainPendingPromiseJobs();
   bool success = handleException(&result);
@@ -277,7 +540,7 @@ bool ExecutionContext::evaluateJavaScript(const uint16_t* code, size_t codeLengt
 bool ExecutionContext::evaluateJavaScript(const char16_t* code, size_t length, const char* sourceURL, int startLine) {
   std::string utf8Code = toUTF8(std::u16string(reinterpret_cast<const char16_t*>(code), length));
     //bruce
-  KRAKEN_LOG(DEBUG) <<  "this2: "   <<  this << "  js utf8Code code: " << utf8Code  <<  "  codeLength:"  << length   << std::endl;
+  //KRAKEN_LOG(DEBUG) <<  "this2: "   <<  this << "  js utf8Code code: " << utf8Code  <<  "  codeLength:"  << length   << std::endl;
   JSValue result = JS_Eval(m_ctx, utf8Code.c_str(), utf8Code.size(), sourceURL, JS_EVAL_TYPE_GLOBAL);
   drainPendingPromiseJobs();
   bool success = handleException(&result);
@@ -287,7 +550,7 @@ bool ExecutionContext::evaluateJavaScript(const char16_t* code, size_t length, c
 
 bool ExecutionContext::evaluateJavaScript(const char* code, size_t codeLength, const char* sourceURL, int startLine) {
   //bruce
-  KRAKEN_LOG(DEBUG) <<  "this: "   <<  this << "  js code: " << code  <<  "  codeLength:"  << codeLength   << std::endl;
+  //KRAKEN_LOG(DEBUG) <<  "this: "   <<  this << "  js code: " << code  <<  "  codeLength:"  << codeLength   << std::endl;
   JSValue result = JS_Eval(m_ctx, code, codeLength, sourceURL, JS_EVAL_TYPE_GLOBAL);
   drainPendingPromiseJobs();
   bool success = handleException(&result);
@@ -314,27 +577,32 @@ bool ExecutionContext::evaluateWasmByteCode(uint8_t* bytes, size_t byteLength) {
   KRAKEN_LOG(DEBUG) <<  "this: "   <<  this << "  wasm code: " << bytes  <<  "  byteLength:"  << byteLength   << std::endl;
   m_wasmbuf = new unsigned char[byteLength];
   memcpy(m_wasmbuf,bytes,byteLength);
-  char error_buf[128];
+  char error_buf[128] = {"no error!"};
   /*wasm_module_t module;
   wasm_module_inst_t module_inst;
   wasm_function_inst_t func;
   wasm_exec_env_t exec_env;*/
   unsigned int size, stack_size = 8092, heap_size = 8092;
 
+  KRAKEN_LOG(DEBUG) <<  "before  wasm_runtime_load " << std::endl;
   module = wasm_runtime_load(m_wasmbuf, byteLength, error_buf, sizeof(error_buf));
+  KRAKEN_LOG(DEBUG) <<  "after  wasm_runtime_load  module: " <<  module  <<  "  error:"   <<   error_buf << std::endl;
   /* create an instance of the WASM module (WASM linear memory is ready) */
   module_inst = wasm_runtime_instantiate(module, stack_size, heap_size,
                                          error_buf, sizeof(error_buf));
+  KRAKEN_LOG(DEBUG) <<  "after  wasm_runtime_instantiate  module_inst: " <<  module_inst  <<  "  error:"   <<   error_buf << std::endl;
   exec_env = wasm_runtime_create_exec_env(module_inst, stack_size);
+  KRAKEN_LOG(DEBUG) <<  "after  wasm_runtime_create_exec_env "  <<   error_buf << std::endl;
   
   //KRAKEN_LOG(DEBUG) <<  "ExecutionContext:  " <<  this  <<   "  module_inst: "  << module_inst  << std::endl;
 
   m_loadwasm = true;
-  char func_name[256][256];
-  int  param_count[256];
+  char func_name[2048][512];
+  int  param_count[2048];
   int func_count = 0;
+  //KRAKEN_LOG(DEBUG) <<  "before  wasm_runtime_list_functions " << std::endl;
   func_count = wasm_runtime_list_functions(module_inst,func_name,param_count);
-  
+  //KRAKEN_LOG(DEBUG) <<  "after  wasm_runtime_list_functions "   <<  std::endl;
 
   //KRAKEN_LOG(DEBUG) <<  "wasm_runtime_list_functions ret: "   <<   func_count   << std::endl;
 
@@ -352,7 +620,7 @@ bool ExecutionContext::evaluateWasmByteCode(uint8_t* bytes, size_t byteLength) {
   
   for(int i = 0;i<func_count;++i)
   {
-    KRAKEN_LOG(DEBUG) <<  "func_name: "   <<  func_name[i] << "  param_count: " << param_count[i]    << std::endl;
+    //KRAKEN_LOG(DEBUG) <<  "func_name: "   <<  func_name[i] << "  param_count: " << param_count[i]    << std::endl;
     
     data[1] = (JSValueConst)JS_NewString(ctx(),func_name[i]);
     JS_SetPropertyStr(ctx(), global_obj, func_name[i],
@@ -498,6 +766,10 @@ void ExecutionContext::defineGlobalProperty(const char* prop, JSValue value) {
   JSAtom atom = JS_NewAtom(m_ctx, prop);
   JS_SetProperty(m_ctx, globalObject, atom, value);
   JS_FreeAtom(m_ctx, atom);
+}
+
+JSValue ExecutionContext::getGlobalProperty(const char* prop) {
+  return JS_GetPropertyStr(m_ctx, globalObject, prop);
 }
 
 uint8_t* ExecutionContext::dumpByteCode(const char* code, uint32_t codeLength, const char* sourceURL, size_t* bytecodeLength) {

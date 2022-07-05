@@ -91,6 +91,9 @@ class ExecutionContext {
   bool handleException(JSValue* exc);
   void drainPendingPromiseJobs();
   void defineGlobalProperty(const char* prop, JSValueConst value);
+
+  JSValue getGlobalProperty(const char* prop);
+
   uint8_t* dumpByteCode(const char* code, uint32_t codeLength, const char* sourceURL, size_t* bytecodeLength);
 
   // Gets the DOMTimerCoordinator which maintains the "active timer

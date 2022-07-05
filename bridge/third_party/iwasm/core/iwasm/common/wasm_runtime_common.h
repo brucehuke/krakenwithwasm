@@ -448,7 +448,7 @@ wasm_runtime_deinstantiate(WASMModuleInstanceCommon *module_inst);
 
 //by bruce
 WASM_RUNTIME_API_EXTERN int 
-wasm_runtime_list_functions(WASMModuleInstanceCommon *const module_inst, char func_name[][256],int *param_count);
+wasm_runtime_list_functions(WASMModuleInstanceCommon *const module_inst, char func_name[][512],int *param_count);
 
 /* See wasm_export.h for description */
 WASM_RUNTIME_API_EXTERN WASMFunctionInstanceCommon *

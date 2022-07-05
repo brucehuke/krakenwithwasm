@@ -1659,21 +1659,21 @@ wasm_lookup_function(const WASMModuleInstance *module_inst, const char *name,
 }
 
 //by bruce
-int  wasm_list_function(const WASMModuleInstance *module_inst, char name[][256],int *param_count)
+int  wasm_list_function(const WASMModuleInstance *module_inst, char name[][512],int *param_count)
 {
     uint32 i;
     int count = 0;
-    printf("wasm_list_function count: %d\n", module_inst->export_func_count );
-    fflush(stdout);
+    //printf("wasm_list_function count: %d\n", module_inst->export_func_count );
+    //fflush(stdout);
     for (i = 0; i < module_inst->export_func_count; i++)
     {
-        printf("wasm_list_function  %d,%s,%d\n", i,module_inst->export_functions[i].name, module_inst->export_functions[i].function->param_count);
-        fflush(stdout);
+        //printf("wasm_list_function  %d,%s,%d\n", i,module_inst->export_functions[i].name, module_inst->export_functions[i].function->param_count);
+        //fflush(stdout);
         strcpy(name[count],module_inst->export_functions[i].name);
         param_count[count++] = module_inst->export_functions[i].function->param_count;
     }
-    printf("wasm_list_function end count:%d\n",count);
-    fflush(stdout);
+    //printf("wasm_list_function end count:%d\n",count);
+    //fflush(stdout);
     return count;
 }
 

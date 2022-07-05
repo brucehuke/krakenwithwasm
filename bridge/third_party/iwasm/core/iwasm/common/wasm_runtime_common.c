@@ -1209,11 +1209,9 @@ wasm_runtime_get_function_type(const WASMFunctionInstanceCommon *function,
 }
 
 //by bruce
-int wasm_runtime_list_functions(WASMModuleInstanceCommon *const module_inst, char func_name[][256],int* param_count)
+int wasm_runtime_list_functions(WASMModuleInstanceCommon *const module_inst, char func_name[][512],int* param_count)
 {
     int count = 0;
-    printf("in wasm_runtime_list_functions!!!!!\n");
-    fflush(stdout);
 
 #if WASM_ENABLE_INTERP != 0
     if (module_inst->module_type == Wasm_Module_Bytecode)

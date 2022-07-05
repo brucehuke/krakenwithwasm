@@ -11,6 +11,8 @@
 #include "kraken_bridge.h"
 #include "text_node.h"
 
+#include "foundation/logging.h"
+
 namespace kraken::binding::qjs {
 
 void bindNode(ExecutionContext* context) {
@@ -83,20 +85,26 @@ JSValue Node::appendChild(JSContext* ctx, JSValue this_val, int argc, JSValue* a
 
   auto selfInstance = static_cast<NodeInstance*>(JS_GetOpaque(this_val, Node::classId(this_val)));
   if (selfInstance == nullptr)
+  {
+    KRAKEN_LOG(DEBUG) << "  in Node::appendChild   this object is not a instance of Node " << std::endl;
     return JS_ThrowTypeError(ctx, "this object is not a instance of Node.");
+  }
   JSValue nodeValue = argv[0];
 
   if (!JS_IsObject(nodeValue)) {
+    KRAKEN_LOG(DEBUG) << "  in Node::appendChild   Failed to execute 'appendChild' on 'Node': first arguments should be an Node type. " << std::endl;
     return JS_ThrowTypeError(ctx, "Failed to execute 'appendChild' on 'Node': first arguments should be an Node type.");
   }
 
   auto* nodeInstance = static_cast<NodeInstance*>(JS_GetOpaque(nodeValue, Node::classId(nodeValue)));
 
   if (nodeInstance == nullptr || nodeInstance->document() != selfInstance->document()) {
+    KRAKEN_LOG(DEBUG) << "  in Node::appendChild   Failed to execute 'appendChild' on 'Node': first arguments should be an Node type." << std::endl;
     return JS_ThrowTypeError(ctx, "Failed to execute 'appendChild' on 'Node': first arguments should be an Node type.");
   }
 
   if (nodeInstance == selfInstance) {
+    KRAKEN_LOG(DEBUG) << "  in Node::appendChild   Failed to execute 'appendChild' on 'Node': The new child element contains the parent." << std::endl;
     return JS_ThrowTypeError(ctx, "Failed to execute 'appendChild' on 'Node': The new child element contains the parent.");
   }
 

@@ -152,7 +152,7 @@ void evaluateScripts(int32_t contextId, NativeString* code, const char* bundleFi
   auto context = static_cast<kraken::KrakenPage*>(getPage(contextId));
 
   //bruce 
-  KRAKEN_LOG(DEBUG) << "  bundleFilename: " << bundleFilename  <<  "  startLine:"  << startLine  << "  code string:"  << code->string  <<  "  code string len: "  <<  code->length  << std::endl;
+  //KRAKEN_LOG(DEBUG) << "  bundleFilename: " << bundleFilename  <<  "  startLine:"  << startLine  << "  code string:"  << code->string  <<  "  code string len: "  <<  code->length  << std::endl;
 
   context->evaluateScript(code, bundleFilename, startLine);
 }

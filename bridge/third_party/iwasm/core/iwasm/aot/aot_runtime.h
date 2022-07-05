@@ -528,7 +528,7 @@ aot_lookup_function(const AOTModuleInstance *module_inst, const char *name,
 
 //by bruce
  int
-aot_list_function(const AOTModuleInstance *module_inst, char name[][256],int *param_count);
+aot_list_function(const AOTModuleInstance *module_inst, char name[][512],int *param_count);
 
 /**
  * Call the given AOT function of a AOT module instance with

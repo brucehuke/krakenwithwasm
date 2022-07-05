@@ -2968,7 +2968,7 @@ load_from_sections(WASMModule *module, WASMSection *sections,
                 break;
 #endif
             default:
-                set_error_buf(error_buf, error_buf_size, "invalid section id");
+                set_error_buf(error_buf, error_buf_size, "loadsections invalid section id");
                 return false;
         }
 
@@ -3333,11 +3333,17 @@ static uint8 section_ids[] = {
     SECTION_TYPE_EXPORT,
     SECTION_TYPE_START,
     SECTION_TYPE_ELEM,
+//by bruce
 #if WASM_ENABLE_BULK_MEMORY != 0
     SECTION_TYPE_DATACOUNT,
 #endif
     SECTION_TYPE_CODE,
     SECTION_TYPE_DATA
+//by bruce
+/*
+#if WASM_ENABLE_BULK_MEMORY != 0
+    ,SECTION_TYPE_DATACOUNT
+#endif*/
 };
 /* clang-format on */
 
@@ -3406,7 +3412,7 @@ create_sections(const uint8 *buf, uint32 size, WASMSection **p_section_list,
             p += section_size;
         }
         else {
-            set_error_buf(error_buf, error_buf_size, "invalid section id");
+            set_error_buf(error_buf, error_buf_size, "createsections invalid section id");
             return false;
         }
     }

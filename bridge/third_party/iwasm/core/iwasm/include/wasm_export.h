@@ -408,7 +408,7 @@ wasm_runtime_lookup_function(wasm_module_inst_t const module_inst,
 
 //by bruce
 WASM_RUNTIME_API_EXTERN int 
-wasm_runtime_list_functions(wasm_module_inst_t const module_inst, char func_name[][256],int* param_count);
+wasm_runtime_list_functions(wasm_module_inst_t const module_inst, char func_name[][512],int* param_count);
 
 /**
  * Create execution environment for a WASM module instance.

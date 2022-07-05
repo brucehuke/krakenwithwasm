@@ -190,6 +190,7 @@ if ($ENV{KRAKEN_JS_ENGINE} MATCHES "quickjs")
   set (WAMR_BUILD_LIBC_BUILTIN 1)
   set (WAMR_BUILD_LIBC_WASI 1)
   set (WAMR_BUILD_SIMD 1)
+  set (WAMR_BUILD_BULK_MEMORY 1)
   set (WAMR_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/iwasm)
 
   include (${WAMR_ROOT_DIR}/build-scripts/runtime_lib.cmake)

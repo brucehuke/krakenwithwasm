@@ -300,7 +300,7 @@ wasm_lookup_function(const WASMModuleInstance *module_inst, const char *name,
                      const char *signature);
 
 //by bruce
-int wasm_list_function(const WASMModuleInstance *module_inst, char name[][256],int* param_count);
+int wasm_list_function(const WASMModuleInstance *module_inst, char name[][512],int* param_count);
 
 #if WASM_ENABLE_MULTI_MODULE != 0
 WASMGlobalInstance *

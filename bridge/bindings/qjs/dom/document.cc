@@ -32,6 +32,8 @@
 #include "events/.gen/popstate_event.h"
 #include "events/touch_event.h"
 
+#include "foundation/logging.h"
+
 namespace kraken::binding::qjs {
 
 void traverseNode(NodeInstance* node, TraverseHandler handler) {
@@ -65,7 +67,11 @@ void bindDocument(ExecutionContext* context) {
 JSClassID Document::kDocumentClassID{0};
 
 Document::Document(ExecutionContext* context) : Node(context, "Document") {
-  std::call_once(kDocumentInitOnceFlag, []() { JS_NewClassID(&kDocumentClassID); });
+  std::call_once(kDocumentInitOnceFlag, []() 
+    { 
+        JS_NewClassID(&kDocumentClassID); 
+        KRAKEN_LOG(DEBUG) << "  Document::kDocumentClassID: "  << kDocumentClassID   << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"  << std::endl; 
+    });
   JS_SetPrototype(m_ctx, m_prototypeObject, Node::instance(m_context)->prototype());
   if (!document_registered) {
     defineElement("img", ImageElement::instance(m_context));
@@ -78,6 +84,8 @@ Document::Document(ExecutionContext* context) : Node(context, "Document") {
     defineElement("template", TemplateElement::instance(m_context));
     document_registered = true;
   }
+
+ KRAKEN_LOG(DEBUG) << "  Document:: this:"  <<  this  <<  "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"  << std::endl; 
 
   if (!event_registered) {
     event_registered = true;
@@ -190,9 +198,17 @@ JSValue Document::createTextNode(JSContext* ctx, JSValue this_val, int argc, JSV
     return JS_ThrowTypeError(ctx, "Failed to execute 'createTextNode' on 'Document': 1 argument required, but only 0 present.");
   }
 
-  auto* document = static_cast<DocumentInstance*>(JS_GetOpaque(this_val, Document::classId()));
+  //JSObject* p = (JSObject*)this_val.u.ptr;
+  auto* document = static_cast<DocumentInstance*>(JS_GetOpaque(this_val, Document::classId())); 
+  //KRAKEN_LOG(DEBUG) << "  in Document::createTextNode document: "  << document  <<  "  p:"  <<  p  <<  "  Document::classId():"    <<  Document::classId() << std::endl;
   JSValue textNode = JS_CallConstructor(ctx, TextNode::instance(document->m_context)->jsObject, argc, argv);
+  KRAKEN_LOG(DEBUG) << "  in Document::createTextNode after js_call  textNode: "  << textNode.u.ptr  <<  "  tag:"    <<  textNode.tag << std::endl;
   return textNode;
+}
+
+//by bruce
+JSValue Document::getBody(JSContext* ctx,  JSValue this_val, int argc, JSValue* argv) {
+  return Document::bodyPropertyDescriptor::getter(ctx,this_val,argc,argv);
 }
 
 JSValue Document::createDocumentFragment(JSContext* ctx, JSValue this_val, int argc, JSValue* argv) {
