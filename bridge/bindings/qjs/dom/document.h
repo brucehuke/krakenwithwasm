@@ -34,8 +34,8 @@ class Document : public Node {
   static JSValue createEvent(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
   static JSValue createElement(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
   static JSValue createTextNode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
-  //by bruce
-  static JSValue getBody(JSContext* ctx,JSValueConst this_val, int argc, JSValue* argv);
+  // by bruce
+  static JSValue getBody(JSContext* ctx, JSValueConst this_val, int argc, JSValue* argv);
   static JSValue createDocumentFragment(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
   static JSValue createComment(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
   static JSValue getElementById(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);

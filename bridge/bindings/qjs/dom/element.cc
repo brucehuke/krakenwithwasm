@@ -210,14 +210,14 @@ JSValue Element::setAttribute(JSContext* ctx, JSValue this_val, int argc, JSValu
   if (attributes->hasAttribute(name)) {
     JSValue oldAttribute = attributes->getAttribute(name);
     JSValue exception = attributes->setAttribute(name, attributeValue);
-    KRAKEN_LOG(DEBUG) << "  Element::setAttribute hasAttribute: "  << name <<  "  ret: tag "  <<  exception.tag   << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"  << std::endl; 
+    KRAKEN_LOG(DEBUG) << "  Element::setAttribute hasAttribute: " << name << "  ret: tag " << exception.tag << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
     if (JS_IsException(exception))
       return exception;
     element->_didModifyAttribute(name, oldAttribute, attributeValue);
     JS_FreeValue(ctx, oldAttribute);
   } else {
     JSValue exception = attributes->setAttribute(name, attributeValue);
-    KRAKEN_LOG(DEBUG) << "  Element::setAttribute has not Attribute: "  << name <<  "  ret: tag "  <<  exception.tag   << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"  << std::endl; 
+    KRAKEN_LOG(DEBUG) << "  Element::setAttribute has not Attribute: " << name << "  ret: tag " << exception.tag << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
     if (JS_IsException(exception))
       return exception;
     element->_didModifyAttribute(name, JS_NULL, attributeValue);
@@ -226,7 +226,8 @@ JSValue Element::setAttribute(JSContext* ctx, JSValue this_val, int argc, JSValu
   std::unique_ptr<NativeString> args_01 = stringToNativeString(name);
   std::unique_ptr<NativeString> args_02 = jsValueToNativeString(ctx, attributeValue);
 
-  KRAKEN_LOG(DEBUG) << "  Element::setAttribute before send command: "  << name <<  "  attributeValue: tag "  <<  attributeValue.tag   <<  "  attributeValue: val "  <<  attributeValue.u.ptr  << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"  << std::endl; 
+  KRAKEN_LOG(DEBUG) << "  Element::setAttribute before send command: " << name << "  attributeValue: tag " << attributeValue.tag << "  attributeValue: val " << attributeValue.u.ptr
+                    << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
   element->m_context->uiCommandBuffer()->addCommand(element->m_eventTargetId, UICommand::setAttribute, *args_01, *args_02, nullptr);
 
   JS_FreeValue(ctx, attributeValue);

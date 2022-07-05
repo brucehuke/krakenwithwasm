@@ -84,8 +84,7 @@ JSValue Node::appendChild(JSContext* ctx, JSValue this_val, int argc, JSValue* a
   }
 
   auto selfInstance = static_cast<NodeInstance*>(JS_GetOpaque(this_val, Node::classId(this_val)));
-  if (selfInstance == nullptr)
-  {
+  if (selfInstance == nullptr) {
     KRAKEN_LOG(DEBUG) << "  in Node::appendChild   this object is not a instance of Node " << std::endl;
     return JS_ThrowTypeError(ctx, "this object is not a instance of Node.");
   }

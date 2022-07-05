@@ -5,9 +5,9 @@
 #ifndef KRAKENBRIDGE_JS_CONTEXT_H
 #define KRAKENBRIDGE_JS_CONTEXT_H
 
+#include <iwasm/core/iwasm/include/wasm_export.h>
 #include <quickjs/list.h>
 #include <quickjs/quickjs.h>
-#include <iwasm/core/iwasm/include/wasm_export.h>
 #include <atomic>
 #include <cassert>
 #include <cmath>
@@ -79,7 +79,7 @@ class ExecutionContext {
   bool evaluateJavaScript(const char16_t* code, size_t length, const char* sourceURL, int startLine);
   bool evaluateJavaScript(const char* code, size_t codeLength, const char* sourceURL, int startLine);
   bool evaluateByteCode(uint8_t* bytes, size_t byteLength);
-  //by bruce
+  // by bruce
   bool evaluateWasmByteCode(uint8_t* bytes, size_t byteLength);
 
   bool isValid() const;
@@ -122,12 +122,12 @@ class ExecutionContext {
   static JSClassID kHostObjectClassId;
   static JSClassID kHostExoticObjectClassId;
 
-    //by bruce
+  // by bruce
   bool m_loadwasm = false;
   wasm_module_t module;
   wasm_module_inst_t module_inst;
   wasm_exec_env_t exec_env;
-  unsigned char *m_wasmbuf = nullptr;
+  unsigned char* m_wasmbuf = nullptr;
 
   static void dispatchGlobalUnhandledRejectionEvent(ExecutionContext* context, JSValueConst promise, JSValueConst error);
   static void dispatchGlobalRejectionHandledEvent(ExecutionContext* context, JSValueConst promise, JSValueConst error);
@@ -156,8 +156,6 @@ class ExecutionContext {
   ExecutionContextGCTracker* m_gcTracker{nullptr};
   foundation::UICommandBuffer m_commandBuffer{contextId};
   RejectedPromises m_rejectedPromise;
-
-
 };
 
 // The read object's method or properties via Proxy, we should redirect this_val from Proxy into target property of

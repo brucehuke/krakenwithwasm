@@ -76,7 +76,7 @@ JSValue CSSStyleDeclaration::setProperty(JSContext* ctx, JSValue this_val, int a
   const char* cPropertyName = JS_ToCString(ctx, propertyNameValue);
   std::string propertyName = std::string(cPropertyName);
 
-  //KRAKEN_LOG(DEBUG) << "  CSSStyleDeclaration::setProperty key: "  <<  propertyName  <<   "  instance:" << instance  << std::endl; 
+  // KRAKEN_LOG(DEBUG) << "  CSSStyleDeclaration::setProperty key: "  <<  propertyName  <<   "  instance:" << instance  << std::endl;
 
   instance->internalSetProperty(propertyName, propertyValue);
 
@@ -122,12 +122,11 @@ StyleDeclarationInstance::StyleDeclarationInstance(CSSStyleDeclaration* cssStyle
 StyleDeclarationInstance::~StyleDeclarationInstance() {}
 
 bool StyleDeclarationInstance::internalSetProperty(std::string& name, JSValue value) {
-
   name = parseJavaScriptCSSPropertyName(name);
 
   properties[name] = jsValueToStdString(m_ctx, value);
 
-  KRAKEN_LOG(DEBUG) << "  in internalSetProperty name: "  << name  <<   "  value:"   <<  properties[name]   <<  "   ownerEventTarget:"   <<  ownerEventTarget  << std::endl; 
+  KRAKEN_LOG(DEBUG) << "  in internalSetProperty name: " << name << "  value:" << properties[name] << "   ownerEventTarget:" << ownerEventTarget << std::endl;
 
   if (ownerEventTarget != nullptr) {
     std::unique_ptr<NativeString> args_01 = stringToNativeString(name);
