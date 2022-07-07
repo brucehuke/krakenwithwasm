@@ -101,33 +101,34 @@ void trackNextRef(wasm_exec_env_t exec_env, int id) {
   return;
 }
 
+int createTextNode(wasm_exec_env_t exec_env, int id, char16_t* data) {
+  // std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
 
+  std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
+  int* datalen = (int*)data - 1;
+  std::string datastr = converter.to_bytes(data, data + (*datalen) / 2);
 
-int  createTextNode(wasm_exec_env_t exec_env ,int id, char16_t *data)
-{
-  //std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
-  
-  std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t >converter;
-  int *datalen = (int*)data -1;
-  std::string datastr = converter.to_bytes(data,data+(*datalen)/2);
+  JSValue str = JS_NewString(g_context, datastr.c_str());
 
-  
-  JSValue str = JS_NewString(g_context,datastr.c_str());
-
-  KRAKEN_LOG(DEBUG) << "  in createTextNode id: "  << id  <<   "  data:"  << datastr  <<  "  datalen:"  <<  *datalen << std::endl;
+  KRAKEN_LOG(DEBUG) << "  in createTextNode id: " << id << "  data:" << datastr << "  datalen:" << *datalen << std::endl;
   /*
   unsigned char* data1 = (unsigned char*)data;
   KRAKEN_LOG(DEBUG) << "  in createTextNode id: "  << id  <<   "  data:"   <<  std::hex <<  data1[0] << " " << data1[1]  << " "<<  data1[2] << " " << data1[3]  << " "
          <<  data1[4] << " " << data1[5]  << " " <<  data1[6] << " " << data1[7]   << " " <<  data1[8] << " " << data1[9]  << " "<<  data1[10] << " " << data1[11]   << " "
          <<  data1[12] << " " << data1[13]  << " " <<  data1[14] << " " << data1[15]   << " "  <<  data1[16] << " " << data1[17]  << " " <<  data1[18] << " " << data1[19]  << " "
          <<  data1[20] << " " << data1[21]  << " " <<  data1[22] << " " << data1[23]   << " " <<  data1[24] << " " << data1[25]  << " "<<  data1[26] << " " << data1[27] << " "
-          <<  data1[28] << " " << data1[29]  << " "<<  data1[30] << " " << data1[31]   << " " <<  data1[32] << " " << data1[33]  << " "<<  data1[34] << " " << data1[35]<< std::endl; 
+          <<  data1[28] << " " << data1[29]  << " "<<  data1[30] << " " << data1[31]   << " " <<  data1[32] << " " << data1[33]  << " "<<  data1[34] << " " << data1[35]<< std::endl;
 
-      KRAKEN_LOG(DEBUG) << "  in createTextNode id: "  << id  <<   "  data:"   <<  std::hex <<  (unsigned int)data1[0] << " " <<  (unsigned int)data1[1]  << " "<<   (unsigned int)data1[2] << " " <<  (unsigned int)data1[3]  << " "
-         <<   (unsigned int)data1[4] << " " <<  (unsigned int)data1[5]  << " "<<   (unsigned int)data1[6] << " " <<  (unsigned int)data1[7]    << " "<<   (unsigned int)data1[8] << " " <<  (unsigned int)data1[9]  << " " <<   (unsigned int)data1[10] << " " << (unsigned int) data1[11]   << " "
-         <<   (unsigned int)data1[12] << " " <<  (unsigned int)data1[13] << " " <<  (unsigned int) data1[14] << " " <<  (unsigned int)data1[15]  << " "  << (unsigned int)  data1[16] << " " <<  (unsigned int)data1[17]  << " " <<   (unsigned int)data1[18] << " " << (unsigned int) data1[19]  << " "
-         <<   (unsigned int)data1[20] << " " <<  (unsigned int)data1[21] << " " <<  (unsigned int) data1[22] << " " <<  (unsigned int)data1[23]   << " " <<   (unsigned int)data1[24] << " " <<  (unsigned int)data1[25]  << " " <<   (unsigned int)data1[26] << " " << (unsigned int) data1[27] << " "
-          <<   (unsigned int)data1[28] << " " << (unsigned int) data1[29]  << " "<<  (unsigned int) data1[30] << " " <<  (unsigned int)data1[31]    << " " <<   (unsigned int)data1[32] << " " <<  (unsigned int)data1[33] << " " <<   (unsigned int)data1[34] << " " <<  (unsigned int)data1[35]<< std::endl; 
+      KRAKEN_LOG(DEBUG) << "  in createTextNode id: "  << id  <<   "  data:"   <<  std::hex <<  (unsigned int)data1[0] << " " <<  (unsigned int)data1[1]  << " "<<   (unsigned int)data1[2] << " " <<
+  (unsigned int)data1[3]  << " "
+         <<   (unsigned int)data1[4] << " " <<  (unsigned int)data1[5]  << " "<<   (unsigned int)data1[6] << " " <<  (unsigned int)data1[7]    << " "<<   (unsigned int)data1[8] << " " <<  (unsigned
+  int)data1[9]  << " " <<   (unsigned int)data1[10] << " " << (unsigned int) data1[11]   << " "
+         <<   (unsigned int)data1[12] << " " <<  (unsigned int)data1[13] << " " <<  (unsigned int) data1[14] << " " <<  (unsigned int)data1[15]  << " "  << (unsigned int)  data1[16] << " " <<
+  (unsigned int)data1[17]  << " " <<   (unsigned int)data1[18] << " " << (unsigned int) data1[19]  << " "
+         <<   (unsigned int)data1[20] << " " <<  (unsigned int)data1[21] << " " <<  (unsigned int) data1[22] << " " <<  (unsigned int)data1[23]   << " " <<   (unsigned int)data1[24] << " " <<
+  (unsigned int)data1[25]  << " " <<   (unsigned int)data1[26] << " " << (unsigned int) data1[27] << " "
+          <<   (unsigned int)data1[28] << " " << (unsigned int) data1[29]  << " "<<  (unsigned int) data1[30] << " " <<  (unsigned int)data1[31]    << " " <<   (unsigned int)data1[32] << " " <<
+  (unsigned int)data1[33] << " " <<   (unsigned int)data1[34] << " " <<  (unsigned int)data1[35]<< std::endl;
   */
   g_lastobj = Document::createTextNode(g_context, g_jsid2cobj[id], 1, &str);
 
@@ -139,8 +140,8 @@ int  createTextNode(wasm_exec_env_t exec_env ,int id, char16_t *data)
 int createElement(wasm_exec_env_t exec_env, int id, char16_t* data) {
   std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
 
-  int *datalen = (int*)data -1;
-  std::string datastr = converter.to_bytes(data,data+(*datalen)/2);
+  int* datalen = (int*)data - 1;
+  std::string datastr = converter.to_bytes(data, data + (*datalen) / 2);
 
   JSValue str = JS_NewString(g_context, datastr.c_str());
 
@@ -162,64 +163,57 @@ int createElement(wasm_exec_env_t exec_env, int id, char16_t* data) {
   return 0;
 }
 
-int getElementById(wasm_exec_env_t exec_env ,int id, char16_t *data)
-{
+int getElementById(wasm_exec_env_t exec_env, int id, char16_t* data) {
   std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
-  int* datalen = (int*)data -1;
-  std::string datastr = converter.to_bytes(data,data+(*datalen)/2);
-  KRAKEN_LOG(DEBUG) << "  in getElementById id: "  << datastr   << std::endl; 
-  JSValue str = JS_NewString(g_context,datastr.c_str());
+  int* datalen = (int*)data - 1;
+  std::string datastr = converter.to_bytes(data, data + (*datalen) / 2);
+  KRAKEN_LOG(DEBUG) << "  in getElementById id: " << datastr << std::endl;
+  JSValue str = JS_NewString(g_context, datastr.c_str());
   g_lastobj = Document::getElementById(g_context, g_jsid2cobj[id], 1, &str);
-  JS_FreeValue(g_context,str);
+  JS_FreeValue(g_context, str);
 
-  if(g_lastobj.tag==JS_TAG_OBJECT && g_lastobj.u.ptr!=nullptr)
-  {
+  if (g_lastobj.tag == JS_TAG_OBJECT && g_lastobj.u.ptr != nullptr) {
     auto* instance = static_cast<ElementInstance*>(JS_GetOpaque(g_lastobj, Element::kElementClassId));
-    KRAKEN_LOG(DEBUG) << "  in getElementById ElementInstance tagname: "  << instance->tagName()   << std::endl; 
-    if(instance->tagName()=="CANVAS")
-    {
-        return -17;
+    KRAKEN_LOG(DEBUG) << "  in getElementById ElementInstance tagname: " << instance->tagName() << std::endl;
+    if (instance->tagName() == "CANVAS") {
+      return -17;
     }
   }
 
   return 0;
 }
 
-void getContext(wasm_exec_env_t exec_env ,int canvasid, int  ctxId, int typeNum)
-{
-  KRAKEN_LOG(DEBUG) << "  in CanvasGetContext canvasid: "  << canvasid <<  "  canvas prt:"  << g_jsid2cobj[canvasid].u.ptr <<  "   ctxId:"  << ctxId  <<  "  typeNum:" <<  typeNum   << std::endl; 
-  if(typeNum!=0)
-      return;
-  JSValue str = JS_NewString(g_context,"2d");
-  g_jsid2cobj[ctxId] = CanvasElement::getContext(g_context,g_jsid2cobj[canvasid],1,&str);
-  JS_FreeValue(g_context,str);
-   return;
+void getContext(wasm_exec_env_t exec_env, int canvasid, int ctxId, int typeNum) {
+  KRAKEN_LOG(DEBUG) << "  in CanvasGetContext canvasid: " << canvasid << "  canvas prt:" << g_jsid2cobj[canvasid].u.ptr << "   ctxId:" << ctxId << "  typeNum:" << typeNum << std::endl;
+  if (typeNum != 0)
+    return;
+  JSValue str = JS_NewString(g_context, "2d");
+  g_jsid2cobj[ctxId] = CanvasElement::getContext(g_context, g_jsid2cobj[canvasid], 1, &str);
+  JS_FreeValue(g_context, str);
+  return;
 }
 
-void setfillStyle(wasm_exec_env_t exec_env , int ctxId, char16_t *style)
-{
+void setfillStyle(wasm_exec_env_t exec_env, int ctxId, char16_t* style) {
   std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
-  int* datalen = (int*)style -1;
-  std::string datastr = converter.to_bytes(style,style+(*datalen)/2);
-  KRAKEN_LOG(DEBUG) << "  in setfillStyle id: "  << style   << std::endl; 
-  //JSValue  attrV = JS_NewString(g_context,datastr.c_str());
-  //CanvasRenderingContext2D::fillStylePropertyDescriptor::setter(g_context,g_jsid2cobj[ctxId],1,&attrV);
+  int* datalen = (int*)style - 1;
+  std::string datastr = converter.to_bytes(style, style + (*datalen) / 2);
+  KRAKEN_LOG(DEBUG) << "  in setfillStyle id: " << style << std::endl;
+  // JSValue  attrV = JS_NewString(g_context,datastr.c_str());
+  // CanvasRenderingContext2D::fillStylePropertyDescriptor::setter(g_context,g_jsid2cobj[ctxId],1,&attrV);
 
-  auto *object = static_cast<CanvasRenderingContext2D *>(JS_GetOpaque(g_jsid2cobj[ctxId], ExecutionContext::kHostObjectClassId));
+  auto* object = static_cast<CanvasRenderingContext2D*>(JS_GetOpaque(g_jsid2cobj[ctxId], ExecutionContext::kHostObjectClassId));
   getDartMethod()->flushUICommand();
-  //JSValue value = argv[0];
+  // JSValue value = argv[0];
 
-    //const char* stringValue = JS_ToCString(g_context, attrV);
-    object->setBindingProperty("fillStyle", Native_NewCString(datastr.c_str()));
-    //JS_FreeCString(g_context, stringValue);
-  
+  // const char* stringValue = JS_ToCString(g_context, attrV);
+  object->setBindingProperty("fillStyle", Native_NewCString(datastr.c_str()));
+  // JS_FreeCString(g_context, stringValue);
 
-  //JS_FreeValue(g_context,attrV);
+  // JS_FreeValue(g_context,attrV);
 }
 
-void fillRect(wasm_exec_env_t exec_env ,int ctxid, int  x, int y,int width,int height)
-{
-  KRAKEN_LOG(DEBUG) << "  in Canvas2DContextfillRect ctxid: "  << ctxid <<  "  x:"  << x <<  "   y:"  << y  <<  "  width:" <<  width  <<  "  height:" <<  height   << std::endl; 
+void fillRect(wasm_exec_env_t exec_env, int ctxid, int x, int y, int width, int height) {
+  KRAKEN_LOG(DEBUG) << "  in Canvas2DContextfillRect ctxid: " << ctxid << "  x:" << x << "   y:" << y << "  width:" << width << "  height:" << height << std::endl;
   JSValue argc[4];
   argc[0].tag = JS_TAG_INT;
   argc[0].u.int32 = x;
@@ -229,15 +223,14 @@ void fillRect(wasm_exec_env_t exec_env ,int ctxid, int  x, int y,int width,int h
   argc[2].u.int32 = width;
   argc[3].tag = JS_TAG_INT;
   argc[3].u.int32 = height;
-  CanvasRenderingContext2D::fillRect(g_context,g_jsid2cobj[ctxid],4,argc);
+  CanvasRenderingContext2D::fillRect(g_context, g_jsid2cobj[ctxid], 4, argc);
   return;
 }
 
-void  log(wasm_exec_env_t exec_env , char16_t *data)
-{
+void log(wasm_exec_env_t exec_env, char16_t* data) {
   std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
   int* datalen = (int*)data - 1;
-  std::string datastr = converter.to_bytes(data,data+(*datalen)/2);
+  std::string datastr = converter.to_bytes(data, data + (*datalen) / 2);
 
   KRAKEN_LOG(DEBUG) << "  in mylog: " << datastr << std::endl;
   return;
@@ -258,9 +251,9 @@ inline std::string trim(std::string& str) {
 void elSetAttribute(wasm_exec_env_t exec_env, int id, char16_t* attr, char16_t* value) {
   std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
   int* datalen = (int*)attr - 1;
-  std::string attrstr = converter.to_bytes(attr,attr+(*datalen)/2);
-  int * datalen1 = (int*)value -1;
-  std::string valuestr = converter.to_bytes(value,value+(*datalen1)/2);
+  std::string attrstr = converter.to_bytes(attr, attr + (*datalen) / 2);
+  int* datalen1 = (int*)value - 1;
+  std::string valuestr = converter.to_bytes(value, value + (*datalen1) / 2);
 
   KRAKEN_LOG(DEBUG) << "  in elSetAttribute id: " << id << "  attr:" << attrstr << "   value:" << valuestr << std::endl;
 
@@ -446,12 +439,8 @@ ExecutionContext::ExecutionContext(int32_t contextId, const JSExceptionHandler& 
     KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail" << std::endl;
   }
 
-  static NativeSymbol native_symbols[] = {
-    EXPORT_WASM_API_WITH_SIG(createTextNode, "(i$)i"),
-    EXPORT_WASM_API_WITH_SIG(createElement, "(i$)i"),
-    EXPORT_WASM_API_WITH_SIG(getElementById, "(i$)i"),
-    EXPORT_WASM_API_WITH_SIG(getBody, "(i)i")
-  };
+  static NativeSymbol native_symbols[] = {EXPORT_WASM_API_WITH_SIG(createTextNode, "(i$)i"), EXPORT_WASM_API_WITH_SIG(createElement, "(i$)i"), EXPORT_WASM_API_WITH_SIG(getElementById, "(i$)i"),
+                                          EXPORT_WASM_API_WITH_SIG(getBody, "(i)i")};
   int n_native_symbols = sizeof(native_symbols) / sizeof(NativeSymbol);
   if (!wasm_runtime_register_natives("asDOM_Document", native_symbols, n_native_symbols)) {
     KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail" << std::endl;
@@ -475,25 +464,16 @@ ExecutionContext::ExecutionContext(int32_t contextId, const JSExceptionHandler& 
     KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail" << std::endl;
   }
 
-  static NativeSymbol native_symbols_asdom_htmlcanvas[] = {
-    EXPORT_WASM_API_WITH_SIG(getContext, "(iii)")
-  };
+  static NativeSymbol native_symbols_asdom_htmlcanvas[] = {EXPORT_WASM_API_WITH_SIG(getContext, "(iii)")};
   int n_native_symbols_asdom_htmlcanvas = sizeof(native_symbols_asdom_htmlcanvas) / sizeof(NativeSymbol);
-  if (!wasm_runtime_register_natives("asDOM_HTMLCanvasElement",
-                                    native_symbols_asdom_htmlcanvas, 
-                                    n_native_symbols_asdom_htmlcanvas)) {    
-      KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail"  << std::endl;
+  if (!wasm_runtime_register_natives("asDOM_HTMLCanvasElement", native_symbols_asdom_htmlcanvas, n_native_symbols_asdom_htmlcanvas)) {
+    KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail" << std::endl;
   }
 
-  static NativeSymbol native_symbols_asdom_2dcanvascontext[] = {
-    EXPORT_WASM_API_WITH_SIG(setfillStyle, "(i$)"),
-    EXPORT_WASM_API_WITH_SIG(fillRect, "(iiiii)")
-  };
+  static NativeSymbol native_symbols_asdom_2dcanvascontext[] = {EXPORT_WASM_API_WITH_SIG(setfillStyle, "(i$)"), EXPORT_WASM_API_WITH_SIG(fillRect, "(iiiii)")};
   int n_native_symbols_asdom_2dcanvascontext = sizeof(native_symbols_asdom_2dcanvascontext) / sizeof(NativeSymbol);
-  if (!wasm_runtime_register_natives("asDOM_Canvas2DRenderingContext",
-                                    native_symbols_asdom_2dcanvascontext, 
-                                    n_native_symbols_asdom_2dcanvascontext)) {    
-      KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail"  << std::endl;
+  if (!wasm_runtime_register_natives("asDOM_Canvas2DRenderingContext", native_symbols_asdom_2dcanvascontext, n_native_symbols_asdom_2dcanvascontext)) {
+    KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail" << std::endl;
   }
   runningContexts++;
 }
