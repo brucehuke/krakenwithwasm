@@ -1,7 +1,7 @@
 import {Object} from '../../../Object'
 import {WebGLRenderingContext} from './webgl/WebGLRenderingContext'
 import {HTMLElement} from '../HTMLElement'
-import {getContext} from '../../../imports'
+import {getContext,fillRect,setfillStyle} from '../../../imports'
 
 class WebGL2RenderingContext extends Object {
 	constructor(public canvas: HTMLCanvasElement) {
@@ -10,11 +10,20 @@ class WebGL2RenderingContext extends Object {
 	// TODO
 }
 
-class CanvasRenderingContext2D extends Object {
+export class CanvasRenderingContext2D extends Object {
 	constructor(public canvas: HTMLCanvasElement) {
 		super()
 	}
 	// TODO
+	fillRect(x:i32,y:i32,width:i32,height:i32) : void
+	{
+		fillRect(this , x,y,width,height)	
+	}
+
+	setfillStyle(style:string):void
+	{
+		setfillStyle(this,style)
+	}
 }
 
 class ImageBitmapRenderingContext extends Object {
@@ -47,7 +56,7 @@ export class HTMLCanvasElement extends HTMLElement {
 		let typeNum: i32 = -1
 
 		if (/*type === '2d' &&*/ obj instanceof CanvasRenderingContext2D) {
-			ERROR('CanvasRenderingContext2D is TODO')
+			//bruce ERROR('CanvasRenderingContext2D is TODO')
 			typeNum = 0
 		} else if (/*type === 'bitmaprenderer' &&*/ obj instanceof ImageBitmapRenderingContext) {
 			ERROR('ImageBitmapRenderingContext is TODO')

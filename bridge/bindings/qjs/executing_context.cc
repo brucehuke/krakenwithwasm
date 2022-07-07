@@ -6,6 +6,7 @@
 #include "bindings/qjs/bom/timer.h"
 #include "bindings/qjs/bom/window.h"
 #include "bindings/qjs/dom/document.h"
+#include "bindings/qjs/dom/elements/.gen/canvas_element.h"
 #include "bindings/qjs/module_manager.h"
 #include "bom/dom_timer_coordinator.h"
 #include "garbage_collected.h"
@@ -108,17 +109,174 @@ void trackNextRef(wasm_exec_env_t exec_env , int id)
   return;
 }
 
+static unsigned
+parse_hex4(const unsigned char *const input)
+{
+    unsigned int h = 0;
+    size_t i = 0;
+
+    for (i = 0; i < 4; i++) {
+        /* parse digit */
+        if ((input[i] >= '0') && (input[i] <= '9')) {
+            h += (unsigned int)input[i] - '0';
+        }
+        else if ((input[i] >= 'A') && (input[i] <= 'F')) {
+            h += (unsigned int)10 + input[i] - 'A';
+        }
+        else if ((input[i] >= 'a') && (input[i] <= 'f')) {
+            h += (unsigned int)10 + input[i] - 'a';
+        }
+        else /* invalid */
+        {
+            return 0;
+        }
+
+        if (i < 3) {
+            /* shift left to make place for the next nibble */
+            h = h << 4;
+        }
+    }
+
+    return h;
+}
+
+static unsigned char
+utf16_literal_to_utf8(const unsigned char *const input_pointer,
+                      const unsigned char *const input_end,
+                      unsigned char **output_pointer)
+{
+    long unsigned int codepoint = 0;
+    unsigned int first_code = 0;
+    const unsigned char *first_sequence = input_pointer;
+    unsigned char utf8_length = 0;
+    unsigned char utf8_position = 0;
+    unsigned char sequence_length = 0;
+    unsigned char first_byte_mark = 0;
+
+    if ((input_end - first_sequence) < 6) {
+        /* input ends unexpectedly */
+        goto fail;
+    }
+
+    /* get the first utf16 sequence */
+    first_code = parse_hex4(first_sequence + 2);
+
+    /* check that the code is valid */
+    if (((first_code >= 0xDC00) && (first_code <= 0xDFFF))) {
+        goto fail;
+    }
+
+    /* UTF16 surrogate pair */
+    if ((first_code >= 0xD800) && (first_code <= 0xDBFF)) {
+        const unsigned char *second_sequence = first_sequence + 6;
+        unsigned int second_code = 0;
+        sequence_length = 12; /* \uXXXX\uXXXX */
+
+        if ((input_end - second_sequence) < 6) {
+            /* input ends unexpectedly */
+            goto fail;
+        }
+
+        if ((second_sequence[0] != '\\') || (second_sequence[1] != 'u')) {
+            /* missing second half of the surrogate pair */
+            goto fail;
+        }
+
+        /* get the second utf16 sequence */
+        second_code = parse_hex4(second_sequence + 2);
+        /* check that the code is valid */
+        if ((second_code < 0xDC00) || (second_code > 0xDFFF)) {
+            /* invalid second half of the surrogate pair */
+            goto fail;
+        }
+
+        /* calculate the unicode codepoint from the surrogate pair */
+        codepoint =
+            0x10000 + (((first_code & 0x3FF) << 10) | (second_code & 0x3FF));
+    }
+    else {
+        sequence_length = 6; /* \uXXXX */
+        codepoint = first_code;
+    }
+
+    /* encode as UTF-8
+     * takes at maximum 4 bytes to encode:
+     * 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx */
+    if (codepoint < 0x80) {
+        /* normal ascii, encoding 0xxxxxxx */
+        utf8_length = 1;
+    }
+    else if (codepoint < 0x800) {
+        /* two bytes, encoding 110xxxxx 10xxxxxx */
+        utf8_length = 2;
+        first_byte_mark = 0xC0; /* 11000000 */
+    }
+    else if (codepoint < 0x10000) {
+        /* three bytes, encoding 1110xxxx 10xxxxxx 10xxxxxx */
+        utf8_length = 3;
+        first_byte_mark = 0xE0; /* 11100000 */
+    }
+    else if (codepoint <= 0x10FFFF) {
+        /* four bytes, encoding 1110xxxx 10xxxxxx 10xxxxxx 10xxxxxx */
+        utf8_length = 4;
+        first_byte_mark = 0xF0; /* 11110000 */
+    }
+    else {
+        /* invalid unicode codepoint */
+        goto fail;
+    }
+
+    /* encode as utf8 */
+    for (utf8_position = (unsigned char)(utf8_length - 1); utf8_position > 0;
+         utf8_position--) {
+        /* 10xxxxxx */
+        (*output_pointer)[utf8_position] =
+            (unsigned char)((codepoint | 0x80) & 0xBF);
+        codepoint >>= 6;
+    }
+    /* encode first byte */
+    if (utf8_length > 1) {
+        (*output_pointer)[0] =
+            (unsigned char)((codepoint | first_byte_mark) & 0xFF);
+    }
+    else {
+        (*output_pointer)[0] = (unsigned char)(codepoint & 0x7F);
+    }
+
+    *output_pointer += utf8_length;
+
+    return sequence_length;
+
+fail:
+    return 0;
+}
+
 int  createTextNode(wasm_exec_env_t exec_env ,int id, char16_t *data)
 {
-  std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
   //std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
-  std::string datastr = converter.to_bytes(data);
+  
+  std::wstring_convert< std::codecvt_utf8_utf16<char16_t>, char16_t >converter;
+  int *datalen = (int*)data -1;
+  std::string datastr = converter.to_bytes(data,data+(*datalen)/2);
+
   
   JSValue str = JS_NewString(g_context,datastr.c_str());
 
-  size_t wcs_sz = sizeof data / sizeof *data;
-  KRAKEN_LOG(DEBUG) << "  in createTextNode id: "  << id  <<   "  data:"   <<  datastr   << std::endl; 
+  KRAKEN_LOG(DEBUG) << "  in createTextNode id: "  << id  <<   "  data:"  << datastr  <<  "  datalen:"  <<  *datalen << std::endl;
+  /*
+  unsigned char* data1 = (unsigned char*)data;
+  KRAKEN_LOG(DEBUG) << "  in createTextNode id: "  << id  <<   "  data:"   <<  std::hex <<  data1[0] << " " << data1[1]  << " "<<  data1[2] << " " << data1[3]  << " "
+         <<  data1[4] << " " << data1[5]  << " " <<  data1[6] << " " << data1[7]   << " " <<  data1[8] << " " << data1[9]  << " "<<  data1[10] << " " << data1[11]   << " "
+         <<  data1[12] << " " << data1[13]  << " " <<  data1[14] << " " << data1[15]   << " "  <<  data1[16] << " " << data1[17]  << " " <<  data1[18] << " " << data1[19]  << " "
+         <<  data1[20] << " " << data1[21]  << " " <<  data1[22] << " " << data1[23]   << " " <<  data1[24] << " " << data1[25]  << " "<<  data1[26] << " " << data1[27] << " "
+          <<  data1[28] << " " << data1[29]  << " "<<  data1[30] << " " << data1[31]   << " " <<  data1[32] << " " << data1[33]  << " "<<  data1[34] << " " << data1[35]<< std::endl; 
 
+      KRAKEN_LOG(DEBUG) << "  in createTextNode id: "  << id  <<   "  data:"   <<  std::hex <<  (unsigned int)data1[0] << " " <<  (unsigned int)data1[1]  << " "<<   (unsigned int)data1[2] << " " <<  (unsigned int)data1[3]  << " "
+         <<   (unsigned int)data1[4] << " " <<  (unsigned int)data1[5]  << " "<<   (unsigned int)data1[6] << " " <<  (unsigned int)data1[7]    << " "<<   (unsigned int)data1[8] << " " <<  (unsigned int)data1[9]  << " " <<   (unsigned int)data1[10] << " " << (unsigned int) data1[11]   << " "
+         <<   (unsigned int)data1[12] << " " <<  (unsigned int)data1[13] << " " <<  (unsigned int) data1[14] << " " <<  (unsigned int)data1[15]  << " "  << (unsigned int)  data1[16] << " " <<  (unsigned int)data1[17]  << " " <<   (unsigned int)data1[18] << " " << (unsigned int) data1[19]  << " "
+         <<   (unsigned int)data1[20] << " " <<  (unsigned int)data1[21] << " " <<  (unsigned int) data1[22] << " " <<  (unsigned int)data1[23]   << " " <<   (unsigned int)data1[24] << " " <<  (unsigned int)data1[25]  << " " <<   (unsigned int)data1[26] << " " << (unsigned int) data1[27] << " "
+          <<   (unsigned int)data1[28] << " " << (unsigned int) data1[29]  << " "<<  (unsigned int) data1[30] << " " <<  (unsigned int)data1[31]    << " " <<   (unsigned int)data1[32] << " " <<  (unsigned int)data1[33] << " " <<   (unsigned int)data1[34] << " " <<  (unsigned int)data1[35]<< std::endl; 
+  */
   g_lastobj = Document::createTextNode(g_context, g_jsid2cobj[id], 1, &str);
 
   JS_FreeValue(g_context,str);
@@ -129,7 +287,8 @@ int  createTextNode(wasm_exec_env_t exec_env ,int id, char16_t *data)
 int createElement(wasm_exec_env_t exec_env ,int id, char16_t *data)
 {
   std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
-  std::string datastr = converter.to_bytes(data);
+  int *datalen = (int*)data -1;
+  std::string datastr = converter.to_bytes(data,data+(*datalen)/2);
   
   JSValue str = JS_NewString(g_context,datastr.c_str());
 
@@ -152,10 +311,82 @@ int createElement(wasm_exec_env_t exec_env ,int id, char16_t *data)
   return 0;
 }
 
+int getElementById(wasm_exec_env_t exec_env ,int id, char16_t *data)
+{
+  std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
+  int* datalen = (int*)data -1;
+  std::string datastr = converter.to_bytes(data,data+(*datalen)/2);
+  KRAKEN_LOG(DEBUG) << "  in getElementById id: "  << datastr   << std::endl; 
+  JSValue str = JS_NewString(g_context,datastr.c_str());
+  g_lastobj = Document::getElementById(g_context, g_jsid2cobj[id], 1, &str);
+  JS_FreeValue(g_context,str);
+
+  if(g_lastobj.tag==JS_TAG_OBJECT && g_lastobj.u.ptr!=nullptr)
+  {
+    auto* instance = static_cast<ElementInstance*>(JS_GetOpaque(g_lastobj, Element::kElementClassId));
+    KRAKEN_LOG(DEBUG) << "  in getElementById ElementInstance tagname: "  << instance->tagName()   << std::endl; 
+    if(instance->tagName()=="CANVAS")
+    {
+        return -17;
+    }
+  }
+
+  return 0;
+}
+
+void getContext(wasm_exec_env_t exec_env ,int canvasid, int  ctxId, int typeNum)
+{
+  KRAKEN_LOG(DEBUG) << "  in CanvasGetContext canvasid: "  << canvasid <<  "  canvas prt:"  << g_jsid2cobj[canvasid].u.ptr <<  "   ctxId:"  << ctxId  <<  "  typeNum:" <<  typeNum   << std::endl; 
+  if(typeNum!=0)
+      return;
+  JSValue str = JS_NewString(g_context,"2d");
+  g_jsid2cobj[ctxId] = CanvasElement::getContext(g_context,g_jsid2cobj[canvasid],1,&str);
+  JS_FreeValue(g_context,str);
+   return;
+}
+
+void setfillStyle(wasm_exec_env_t exec_env , int ctxId, char16_t *style)
+{
+  std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
+  int* datalen = (int*)style -1;
+  std::string datastr = converter.to_bytes(style,style+(*datalen)/2);
+  KRAKEN_LOG(DEBUG) << "  in setfillStyle id: "  << style   << std::endl; 
+  //JSValue  attrV = JS_NewString(g_context,datastr.c_str());
+  //CanvasRenderingContext2D::fillStylePropertyDescriptor::setter(g_context,g_jsid2cobj[ctxId],1,&attrV);
+
+  auto *object = static_cast<CanvasRenderingContext2D *>(JS_GetOpaque(g_jsid2cobj[ctxId], ExecutionContext::kHostObjectClassId));
+  getDartMethod()->flushUICommand();
+  //JSValue value = argv[0];
+
+    //const char* stringValue = JS_ToCString(g_context, attrV);
+    object->setBindingProperty("fillStyle", Native_NewCString(datastr.c_str()));
+    //JS_FreeCString(g_context, stringValue);
+  
+
+  //JS_FreeValue(g_context,attrV);
+}
+
+void fillRect(wasm_exec_env_t exec_env ,int ctxid, int  x, int y,int width,int height)
+{
+  KRAKEN_LOG(DEBUG) << "  in Canvas2DContextfillRect ctxid: "  << ctxid <<  "  x:"  << x <<  "   y:"  << y  <<  "  width:" <<  width  <<  "  height:" <<  height   << std::endl; 
+  JSValue argc[4];
+  argc[0].tag = JS_TAG_INT;
+  argc[0].u.int32 = x;
+  argc[1].tag = JS_TAG_INT;
+  argc[1].u.int32 = y;
+  argc[2].tag = JS_TAG_INT;
+  argc[2].u.int32 = width;
+  argc[3].tag = JS_TAG_INT;
+  argc[3].u.int32 = height;
+  CanvasRenderingContext2D::fillRect(g_context,g_jsid2cobj[ctxid],4,argc);
+  return;
+}
+
 void  log(wasm_exec_env_t exec_env , char16_t *data)
 {
   std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
-  std::string datastr = converter.to_bytes(data);
+  int* datalen = (int*)data - 1;
+  std::string datastr = converter.to_bytes(data,data+(*datalen)/2);
 
   KRAKEN_LOG(DEBUG) << "  in mylog: "   <<  datastr  << std::endl;
   return;
@@ -177,8 +408,10 @@ inline std::string trim(std::string& str) {
 void elSetAttribute(wasm_exec_env_t exec_env , int id, char16_t *attr, char16_t *value)
 {
   std::wstring_convert<std::codecvt_utf8<char16_t>, char16_t> converter;
-  std::string attrstr = converter.to_bytes(attr);
-  std::string valuestr = converter.to_bytes(value);
+  int* datalen = (int*)attr - 1;
+  std::string attrstr = converter.to_bytes(attr,attr+(*datalen)/2);
+  int * datalen1 = (int*)value -1;
+  std::string valuestr = converter.to_bytes(value,value+(*datalen1)/2);
 
   KRAKEN_LOG(DEBUG) << "  in elSetAttribute id: "  << id  <<   "  attr:"   <<  attrstr  <<   "   value:"   <<  valuestr   << std::endl; 
 
@@ -395,6 +628,7 @@ ExecutionContext::ExecutionContext(int32_t contextId, const JSExceptionHandler& 
   static NativeSymbol native_symbols[] = {
     EXPORT_WASM_API_WITH_SIG(createTextNode, "(i$)i"),
     EXPORT_WASM_API_WITH_SIG(createElement, "(i$)i"),
+    EXPORT_WASM_API_WITH_SIG(getElementById, "(i$)i"),
     EXPORT_WASM_API_WITH_SIG(getBody, "(i)i")
   };
   int n_native_symbols = sizeof(native_symbols) / sizeof(NativeSymbol);
@@ -436,6 +670,26 @@ ExecutionContext::ExecutionContext(int32_t contextId, const JSExceptionHandler& 
       KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail"  << std::endl;
   }
 
+  static NativeSymbol native_symbols_asdom_htmlcanvas[] = {
+    EXPORT_WASM_API_WITH_SIG(getContext, "(iii)")
+  };
+  int n_native_symbols_asdom_htmlcanvas = sizeof(native_symbols_asdom_htmlcanvas) / sizeof(NativeSymbol);
+  if (!wasm_runtime_register_natives("asDOM_HTMLCanvasElement",
+                                    native_symbols_asdom_htmlcanvas, 
+                                    n_native_symbols_asdom_htmlcanvas)) {    
+      KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail"  << std::endl;
+  }
+
+  static NativeSymbol native_symbols_asdom_2dcanvascontext[] = {
+    EXPORT_WASM_API_WITH_SIG(setfillStyle, "(i$)"),
+    EXPORT_WASM_API_WITH_SIG(fillRect, "(iiiii)")
+  };
+  int n_native_symbols_asdom_2dcanvascontext = sizeof(native_symbols_asdom_2dcanvascontext) / sizeof(NativeSymbol);
+  if (!wasm_runtime_register_natives("asDOM_Canvas2DRenderingContext",
+                                    native_symbols_asdom_2dcanvascontext, 
+                                    n_native_symbols_asdom_2dcanvascontext)) {    
+      KRAKEN_LOG(DEBUG) << "   wasm  register  native method fail"  << std::endl;
+  }
   runningContexts++;
 }
 

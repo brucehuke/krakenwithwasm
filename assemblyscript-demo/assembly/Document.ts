@@ -1,5 +1,6 @@
 import {
 	createElement,
+	getElementById,
 	createTextNode,
 	getBody,
 	getChildren,
@@ -75,6 +76,9 @@ export class Document extends Node {
 
 	private __location: Location | null = null
 
+	private  __mapName2id:  Map<string,i32> = new Map<string,i32>()
+
+
 	get location(): Location {
 		let obj = this.__location
 
@@ -111,6 +115,28 @@ export class Document extends Node {
 	createElement(tagName: string /*, TODO options */): HTMLElement {
 		const id: i32 = createElement(this, tagName)
 		return idToNullOrObject(id) as HTMLElement
+	}
+
+	//bruce
+	getElementById(id: string): HTMLElement | null {
+		if(this.__mapName2id.has(id)){
+			const objid: i32 = this.__mapName2id.get(id)
+			return idToNullOrObject(objid) as HTMLElement
+		}
+		else{
+			const objtag: i32 = getElementById(this,id)
+			if(objtag!=0)
+			{
+			    var objid = changetype<i32>(idToNullOrObject(objtag))
+				if(objid==0)
+				    return null
+				else{
+					this.__mapName2id.set(id,objid)
+					return changetype<HTMLElement>(objid) 
+				}
+			}
+			return null
+		}
 	}
 
 	// TODO, for SVG elements.

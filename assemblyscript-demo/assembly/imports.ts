@@ -161,6 +161,10 @@ export declare function getUrl(id: Object): string
 @external('asDOM_Document', 'createElement')
 export declare function createElement(docId: Object, tagName: string): i32
 
+//by bruce
+@external('asDOM_Document', 'getElementById')
+export declare function getElementById(docId: Object, id: string): i32
+
 // @ts-expect-error
 @external('asDOM_Document', 'createTextNode')
 export declare function createTextNode(docId: Object, data: string): i32
@@ -320,6 +324,13 @@ export declare function getContent(id: Object, fragId: Object): void
 // @ts-expect-error
 @external('asDOM_HTMLCanvasElement', 'getContext')
 export declare function getContext(id: Object, ctxId: Object, typeNum: i32 /* TODO , options */): void
+
+// @ts-expect-error
+@external('asDOM_Canvas2DRenderingContext', 'fillRect')
+export declare function fillRect(ctxId: Object, x: i32 ,y: i32 ,width: i32 ,height: i32 ): void
+
+@external('asDOM_Canvas2DRenderingContext', 'setfillStyle')
+export declare function setfillStyle(ctxId: Object, style: string  ): void
 
 // @ts-expect-error
 @external('asDOM_NodeList', 'getLength')
